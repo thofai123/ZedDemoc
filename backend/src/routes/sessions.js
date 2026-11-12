@@ -7,6 +7,37 @@ const { archiveSessionToZip } = require('../utils/helpers');
 
 const router = express.Router();
 
+// GET /api/sessions/active (Resumes any active session after page close, offline, or logout/login)
+router.get('/active', authenticateLecturer, async (req, res) => {
+  try {
+    const now = new Date();
+    const session = await prisma.attendanceSession.findFirst({
+      where: {
+        isActive: true,
+        expiresAt: { gt: now },
+        class: { lecturerId: req.lecturer.id },
+      },
+      include: {
+        class: true,
+        records: {
+          include: { student: { select: { id: true, studentId: true, fullName: true } } },
+          orderBy: { checkInTime: 'desc' },
+        },
+      },
+      orderBy: { startedAt: 'desc' },
+    });
+
+    if (!session) {
+      return res.json({ session: null, remainingSeconds: 0 });
+    }
+
+    const remainingSeconds = Math.max(0, Math.floor((new Date(session.expiresAt) - now) / 1000));
+    res.json({ session, remainingSeconds });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to restore active session.' });
+  }
+});
+
 // POST /api/sessions/start
 router.post('/start', authenticateLecturer, async (req, res) => {
   try {
@@ -22,9 +53,9 @@ router.post('/start', authenticateLecturer, async (req, res) => {
       return res.status(404).json({ error: 'Class not found or unauthorized.' });
     }
 
-    // Deactivate any previous active session for this class
+    // Deactivate any previous active session for this lecturer
     await prisma.attendanceSession.updateMany({
-      where: { classId, isActive: true },
+      where: { isActive: true, class: { lecturerId: req.lecturer.id } },
       data: { isActive: false },
     });
 
@@ -58,7 +89,7 @@ router.post('/start', authenticateLecturer, async (req, res) => {
   }
 });
 
-// GET /api/sessions/:id/live (Live lecturer monitoring & synced countdown)
+// GET /api/sessions/:id/live
 router.get('/:id/live', authenticateLecturer, async (req, res) => {
   try {
     const session = await prisma.attendanceSession.findUnique({
@@ -82,12 +113,12 @@ router.get('/:id/live', authenticateLecturer, async (req, res) => {
   }
 });
 
-// POST /api/sessions/:id/offline-mark (Lecturer offline/manual student entry & status edit)
+// POST /api/sessions/:id/offline-mark
 router.post('/:id/offline-mark', authenticateLecturer, async (req, res) => {
   try {
     const { studentId, fullName, status } = req.body;
     if (!studentId || !fullName || !['ATTENDING', 'ATTENDED', 'ABSENT'].includes(status)) {
-      return res.status(400).json({ error: 'Valid studentId, fullName, and status (ATTENDING, ATTENDED, ABSENT) are required.' });
+      return res.status(400).json({ error: 'Valid studentId, fullName, and status are required.' });
     }
 
     let student = await prisma.student.findUnique({ where: { studentId: studentId.trim() } });
@@ -130,7 +161,25 @@ router.post('/:id/offline-mark', authenticateLecturer, async (req, res) => {
   }
 });
 
-// POST /api/sessions/:id/end (End session and compress into daily ZIP archive)
+// DELETE /api/sessions/:id/cancel (Dedicated Cancel Class button to stop/cancel session)
+router.delete('/:id/cancel', authenticateLecturer, async (req, res) => {
+  try {
+    const session = await prisma.attendanceSession.findFirst({
+      where: { id: req.params.id, class: { lecturerId: req.lecturer.id } },
+    });
+    if (!session) return res.status(404).json({ error: 'Session not found.' });
+
+    await prisma.attendanceSession.delete({
+      where: { id: req.params.id },
+    });
+
+    res.json({ message: 'Class session cancelled and stopped.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to cancel class session.', details: err.message });
+  }
+});
+
+// POST /api/sessions/:id/end (Complete session & compress daily ZIP)
 router.post('/:id/end', authenticateLecturer, async (req, res) => {
   try {
     await prisma.attendanceSession.update({
