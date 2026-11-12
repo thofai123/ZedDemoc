@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AttendanceStatus {
+  ATTENDING
+  ATTENDED
+  ABSENT
+}
+
+model Lecturer {
+  id           String           @id @default(uuid())
+  fullName     String
+  email        String           @unique // Enforced in API: @gmail.com, @outlook.com, @yahoo.com only
+  passwordHash String
+  createdAt    DateTime         @default(now())
+  classes      Class[]          // Enforced max 5 classes per lecturer
+  archives     SessionArchive[]
+}
+
+model Class {
+  id           String              @id @default(uuid())
+  lecturerId   String
+  lecturer     Lecturer            @relation(fields: [lecturerId], references: [id], onDelete: Cascade)
+  className    String              // e.g., "3rd Years"
+  yearOfStudy  Int                 // e.g., 3
+  courseName   String              // e.g., "Special Education" or "Computer Science"
+  calendarYear Int                 // Aligned with Zambian calendar year (2026)
+  createdAt    DateTime            @default(now())
+  sessions     AttendanceSession[]
+}
+
+model Student {
+  id        String             @id @default(uuid())
+  studentId String             @unique // Unique Student ID
+  fullName  String
+  pinHash   String             // Hashed PIN (max 6 alphanumeric characters)
+  createdAt DateTime           @default(now())
+  records   AttendanceRecord[]
+}
+
+model AttendanceSession {
+  id            String             @id @default(uuid())
+  classId       String
+  class         Class              @relation(fields: [classId], references: [id], onDelete: Cascade)
+  sessionToken  String             @unique // Embedded in QR code & fallback link
+  qrCodeData    String
+  fallbackUrl   String
+  centerLat     Float              // Lecturer's broadcast latitude
+  centerLng     Float              // Lecturer's broadcast longitude
+  radiusMeters  Int                @default(100)
+  startedAt     DateTime           @default(now())
+  expiresAt     DateTime           // startedAt + 120 minutes
+  isActive      Boolean            @default(true)
+  isOfflineSync Boolean            @default(false)
+  records       AttendanceRecord[]
+  archive       SessionArchive?
+}
+
+model AttendanceRecord {
+  id                  String            @id @default(uuid())
+  sessionId           String
+  session             AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId           String
+  student             Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status              AttendanceStatus  @default(ATTENDING)
+  checkInTime         DateTime          @default(now())
+  checkOutTime        DateTime?
+  totalMinutesInRange Int               @default(0)
+  minutesOutOfRange   Int               @default(0)
+  lastPingTime        DateTime          @default(now())
+  lastKnownLat        Float?
+  lastKnownLng        Float?
+  randomChecksPassed  Int               @default(0)
+  manualLecturerEdit  Boolean           @default(false)
+  pings               LocationPing[]
+
+  @@unique([sessionId, studentId])
+}
+
+model LocationPing {
+  id             String           @id @default(uuid())
+  recordId       String
+  record         AttendanceRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  pingType       String           // "INITIAL", "INTERVAL_13M", "FIRST_15M", "LAST_15M", "RANDOM_CHECK"
+  latitude       Float
+  longitude      Float
+  distanceMeters Float
+  isWithinRange  Boolean
+  recordedAt     DateTime         @default(now())
+}
+
+model SessionArchive {
+  id           String            @id @default(uuid())
+  sessionId    String            @unique
+  session      AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  lecturerId   String
+  lecturer     Lecturer          @relation(fields: [lecturerId], references: [id], onDelete: Cascade)
+  fileName     String            // Format: Day_Date_CourseName_ZedDemoc.zip
+  filePath     String
+  calendarYear Int               // Retained for full Zambian calendar year
+  createdAt    DateTime          @default(now())
+}
