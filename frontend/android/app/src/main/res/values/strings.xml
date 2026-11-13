@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ZedDemoc</string>
+    <string name="title_activity_main">ZedDemoc</string>
+    <string name="package_name">com.zeddemoc.attendance</string>
+    <string name="custom_url_scheme">com.zeddemoc.attendance</string>
+</resources>

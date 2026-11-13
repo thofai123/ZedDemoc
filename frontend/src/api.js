@@ -1,4 +1,4 @@
-export const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export const API_BASE = (import.meta.env.VITE_API_URL || 'https://zeddemoc.onrender.com/api').replace(/\/$/, '');
 
 export async function apiRequest(path, options = {}, token = null) {
   const headers = {
@@ -7,15 +7,31 @@ export async function apiRequest(path, options = {}, token = null) {
     ...(options.headers || {}),
   };
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Request failed');
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new Error('Cannot reach ZedDemoc server. Check your internet connection or wait 30s for Render to wake up.');
   }
+
+  const rawText = await response.text();
+  let data = {};
+
+  if (rawText) {
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      throw new Error(`Server returned non-JSON response (HTTP ${response.status}).`);
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(data.error || `Server error (HTTP ${response.status}).`);
+  }
+
   return data;
 }
 
