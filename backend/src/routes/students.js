@@ -148,7 +148,7 @@ router.get('/session/:sessionToken', async (req, res) => {
       expiresAt: session.expiresAt,
     });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to validate QR session.', details: err.message });
+    res.status(500).json({ error: `Failed to validate QR session: ${err.message}`, details: err.message });
   }
 });
 
