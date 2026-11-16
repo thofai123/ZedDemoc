@@ -3,7 +3,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const prisma = require('../config/db');
-const { isAllowedLecturerEmail, getZambianCalendarYear } = require('../utils/helpers');
+const { getZambianCalendarYear } = require('../utils/helpers');
+const isAllowedLecturerEmail = (email) => /^[^\s@]+@(gmail\.com|outlook\.com|yahoo\.com)$/i.test(String(email || '').trim());
 
 const router = express.Router();
 
