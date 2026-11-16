@@ -105,3 +105,13 @@ model SessionArchive {
   calendarYear Int               // Retained for full Zambian calendar year
   createdAt    DateTime          @default(now())
 }
+
+model EmailOtp {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  purpose   String   // "REGISTER" or "RESET_PASSWORD"
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
