@@ -1,4 +1,4 @@
-export const API_BASE = (import.meta.env.VITE_API_URL || 'https://zeddemoc.onrender.com/api').replace(/\/$/, '');
+export const API_BASE = 'https://zeddemoc.onrender.com/api';
 
 export async function apiRequest(path, options = {}, token = null) {
   const headers = {
