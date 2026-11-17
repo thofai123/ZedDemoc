@@ -251,7 +251,7 @@ router.post('/checkin', async (req, res) => {
       expiresAt: session.expiresAt,
     });
   } catch (err) {
-    res.status(500).json({ error: 'Student check-in failed.', details: err.message });
+    res.status(500).json({ error: `Student check-in failed: ${err.message}` });
   }
 });
 
@@ -262,7 +262,7 @@ router.post('/ping', async (req, res) => {
     const result = await evaluateLocationPing(recordId, lat, lng, pingType, recordedAt);
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: 'Location ping failed.', details: err.message });
+    res.status(500).json({ error: `Location ping failed: ${err.message}` });
   }
 });
 
@@ -332,7 +332,7 @@ router.post('/checkout', async (req, res) => {
       record: updated,
     });
   } catch (err) {
-    res.status(500).json({ error: 'Checkout failed.', details: err.message });
+    res.status(500).json({ error: `Checkout failed: ${err.message}` });
   }
 });
 
