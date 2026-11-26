@@ -1,4 +1,4 @@
-export const API_BASE = '<YOUR_RAILWAY_URL>/api';
+export const API_BASE = 'https://zeddemoc-backend-production.up.railway.app/api';
 
 export async function apiRequest(path, options = {}, token = null) {
   const headers = {
