@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { QrCode, Share2, Users, Bot, Archive, WifiOff, PlusCircle, LogOut, X, Ban } from 'lucide-react';
 import { API_BASE, apiRequest, formatCountdown } from '../api';
 import ClassSetupWizard from './ClassSetupWizard';
+import ClassMetricsView from './ClassMetricsView';
 
 export default function LecturerDashboard({ token, lecturer, onLogout }) {
   const [classes, setClasses] = useState([]);
   const [showWizard, setShowWizard] = useState(false);
+  const [selectedMetricsClass, setSelectedMetricsClass] = useState(null);
   const [activeSession, setActiveSession] = useState(() => {
     const cached = localStorage.getItem('zeddemoc_active_session');
     return cached ? JSON.parse(cached) : null;
@@ -98,6 +100,7 @@ export default function LecturerDashboard({ token, lecturer, onLogout }) {
 
   function handleReturnToMainDashboard() {
     setShowWizard(false);
+    setSelectedMetricsClass(null);
     setShowQrModal(false);
     setError('');
     setStatusMsg('');
@@ -132,6 +135,7 @@ export default function LecturerDashboard({ token, lecturer, onLogout }) {
           localStorage.setItem('zeddemoc_active_session', JSON.stringify(data.session));
           setLiveRecords([]);
           setRemainingSeconds(120 * 60);
+          setSelectedMetricsClass(null);
           setShowQrModal(true);
           setStatusMsg(`Live 100m geofence active for ${cls.courseName} (${cls.className})`);
         } catch (err) {
@@ -278,6 +282,15 @@ export default function LecturerDashboard({ token, lecturer, onLogout }) {
           {error && <div style={{ background: '#fee2e2', color: '#b91c1c', padding: '12px 16px', borderRadius: '10px', marginBottom: '16px' }}>{error}</div>}
           {statusMsg && <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px 16px', borderRadius: '10px', marginBottom: '16px', fontWeight: 600 }}>{statusMsg}</div>}
 
+          {selectedMetricsClass && (
+            <ClassMetricsView
+              token={token}
+              classItem={selectedMetricsClass}
+              onBack={() => setSelectedMetricsClass(null)}
+              onStartSession={(cls) => handleSelectClassToBroadcast(cls)}
+            />
+          )}
+
           <div className="glass-card" style={{ padding: '22px', marginBottom: '22px' }}>
             <h2 style={{ margin: '0 0 6px', color: '#0c4a6e', fontSize: '1.15rem' }}>
               Select a Class to Generate Live QR Code ({classes.length}/5 Registered)
@@ -288,16 +301,43 @@ export default function LecturerDashboard({ token, lecturer, onLogout }) {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
               {classes.map((cls) => (
-                <div key={cls.id} style={{ border: '1px solid #7dd3fc', background: '#f8fafc', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px' }}>
+                <div
+                  key={cls.id}
+                  onClick={() => setSelectedMetricsClass(cls)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === "Enter") setSelectedMetricsClass(cls); }}
+                  style={{ border: '1px solid #7dd3fc', background: '#f8fafc', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
+                >
                   <div>
-                    <span className="badge badge-attending">Year {cls.yearOfStudy}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="badge badge-attending">Year {cls.yearOfStudy}</span>
+                      <span style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 600 }}>
+                        {cls._count?.sessions || 0} Lectures • View Metrics &rarr;
+                      </span>
+                    </div>
                     <h3 style={{ margin: '8px 0 4px', color: '#0f172a', fontSize: '1.05rem' }}>{cls.courseName}</h3>
                     <p style={{ margin: 0, color: '#475569', fontSize: '0.88rem' }}>{cls.className}</p>
                   </div>
-                  <button className="btn-primary" onClick={() => handleSelectClassToBroadcast(cls)}>
-                    <QrCode size={16} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
-                    Start & Beam QR
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ flex: 1, fontSize: '0.82rem', padding: '8px 10px' }}
+                      onClick={(e) => { e.stopPropagation(); setSelectedMetricsClass(cls); }}
+                    >
+                      Metrics
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{ flex: 2, fontSize: '0.82rem', padding: '8px 10px' }}
+                      onClick={(e) => { e.stopPropagation(); handleSelectClassToBroadcast(cls); }}
+                    >
+                      <QrCode size={15} style={{ verticalAlign: 'middle', marginRight: '5px' }} />
+                      Start &amp; Beam QR
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
